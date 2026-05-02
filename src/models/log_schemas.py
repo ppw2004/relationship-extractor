@@ -36,7 +36,9 @@ class LLMLogEntry(BaseModel):
     model: str
     request_messages: Optional[str] = None  # JSON 字符串
     response_content: Optional[str] = None
+    reasoning_content: Optional[str] = None  # 深度思考内容
     response_model: Optional[str] = None
+    thinking_enabled: Optional[bool] = None  # 是否启用思考
     prompt_tokens: Optional[int] = None
     completion_tokens: Optional[int] = None
     total_tokens: Optional[int] = None
@@ -54,7 +56,9 @@ class LLMLogEntry(BaseModel):
             "model": self.model,
             "request_messages": self.request_messages,
             "response_content": self.response_content,
+            "reasoning_content": self.reasoning_content,
             "response_model": self.response_model,
+            "thinking_enabled": self.thinking_enabled,
             "prompt_tokens": self.prompt_tokens,
             "completion_tokens": self.completion_tokens,
             "total_tokens": self.total_tokens,

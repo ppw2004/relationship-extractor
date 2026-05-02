@@ -50,7 +50,9 @@ class LogStorage:
                     model TEXT NOT NULL,
                     request_messages TEXT,
                     response_content TEXT,
+                    reasoning_content TEXT,
                     response_model TEXT,
+                    thinking_enabled BOOLEAN,
                     prompt_tokens INTEGER,
                     completion_tokens INTEGER,
                     total_tokens INTEGER,
@@ -122,16 +124,19 @@ class LogStorage:
             cursor.execute("""
                 INSERT INTO llm_logs (
                     timestamp, log_type, model, request_messages, response_content,
-                    response_model, prompt_tokens, completion_tokens, total_tokens,
+                    reasoning_content, response_model, thinking_enabled,
+                    prompt_tokens, completion_tokens, total_tokens,
                     temperature, max_tokens, duration_ms, success, error_message
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 log_entry.timestamp.isoformat(),
                 log_entry.log_type.value,
                 log_entry.model,
                 log_entry.request_messages,
                 log_entry.response_content,
+                log_entry.reasoning_content,
                 log_entry.response_model,
+                log_entry.thinking_enabled,
                 log_entry.prompt_tokens,
                 log_entry.completion_tokens,
                 log_entry.total_tokens,
