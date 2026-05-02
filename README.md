@@ -69,11 +69,69 @@ relationship-extractor/
 │   ├── test_logs.py         # 日志查询工具
 │   ├── test_thinking*.py    # 深度思考测试
 │   └── debug_*.py           # 调试脚本
+├── tools/                   # 工具脚本
+│   ├── project_manager.py   # 子项目管理工具
+│   └── split_hongloumeng.py # 文本分片工具
+├── projects/                # 子项目目录
+│   └── <project-name>/      # 各个独立的子项目
 └── examples/                # 使用示例
     ├── basic_usage.py       # 基本使用
     ├── async_example.py     # 异步调用示例
     └── performance_comparison.py  # 性能对比测试
 ```
+
+## 子项目管理（推荐）
+
+当你需要处理多个独立的提取任务时（如不同的书籍、不同的提取策略），可以使用子项目管理工具创建独立的项目空间。
+
+### 创建新项目
+
+```bash
+# 创建红楼梦项目
+python tools/project_manager.py create hongloumeng \
+  --description "《红楼梦》人物关系提取与知识图谱构建"
+
+# 查看所有项目
+python tools/project_manager.py list
+
+# 进入项目
+cd projects/hongloumeng
+
+# 运行提取
+python main.py
+```
+
+### 子项目的独立性
+
+每个子项目拥有：
+- ✅ **独立的 Neo4j 数据库** - 数据完全隔离
+- ✅ **独立的日志系统** - 独立的调用记录
+- ✅ **独立的配置文件** - 可独立调整参数
+- ✅ **独立的结果存储** - 便于管理
+
+### 典型应用场景
+
+**多本书籍对比**：
+```bash
+python tools/project_manager.py create hongloumeng
+python tools/project_manager.py create threekingdoms
+python tools/project_manager.py create waterrmargin
+```
+
+**分阶段提取**：
+```bash
+python tools/project_manager.py create hongloumeng_ch1-40
+python tools/project_manager.py create hongloumeng_ch41-80
+python tools/project_manager.py create hongloumeng_ch81-120
+```
+
+**策略对比**：
+```bash
+python tools/project_manager.py create project_standard
+python tools/project_manager.py create project_thinking
+```
+
+详细文档：[docs/project_manager_guide.md](docs/project_manager_guide.md)
 
 ## 快速开始
 

@@ -116,6 +116,11 @@ class Neo4jClient:
         Returns:
             创建的节点信息
         """
+        # 自动添加项目属性
+        properties = entity.properties or {}
+        if Config.IS_SUBPROJECT:
+            properties["project"] = Config.PROJECT_NAME
+
         query = """
         MERGE (e:Entity {name: $name})
         ON CREATE SET e.type = $type, e.created_at = datetime()
@@ -123,7 +128,6 @@ class Neo4jClient:
         RETURN e
         """
 
-        properties = entity.properties or {}
         parameters = {
             "name": entity.name,
             "type": entity.type,
@@ -154,20 +158,36 @@ class Neo4jClient:
         Returns:
             创建的关系信息
         """
-        query = """
-        MATCH (from:Entity {name: $from_name})
-        MATCH (to:Entity {name: $to_name})
-        MERGE (from)-[r:RELATES_TO {type: $rel_type}]->(to)
-        ON CREATE SET r.created_at = datetime()
-        ON MATCH SET r.updated_at = datetime()
-        RETURN r
-        """
-
-        parameters = {
-            "from_name": relation.from_entity,
-            "to_name": relation.to_entity,
-            "rel_type": relation.type
-        }
+        # 如果是子项目，需要过滤节点
+        if Config.IS_SUBPROJECT:
+            query = f"""
+            MATCH (from:Entity {{name: $from_name, project: $project}})
+            MATCH (to:Entity {{name: $to_name, project: $project}})
+            MERGE (from)-[r:RELATES_TO {{type: $rel_type}}]->(to)
+            ON CREATE SET r.created_at = datetime(), r.project = $project
+            ON MATCH SET r.updated_at = datetime()
+            RETURN r
+            """
+            parameters = {
+                "from_name": relation.from_entity,
+                "to_name": relation.to_entity,
+                "rel_type": relation.type,
+                "project": Config.PROJECT_NAME
+            }
+        else:
+            query = """
+            MATCH (from:Entity {name: $from_name})
+            MATCH (to:Entity {name: $to_name})
+            MERGE (from)-[r:RELATES_TO {type: $rel_type}]->(to)
+            ON CREATE SET r.created_at = datetime()
+            ON MATCH SET r.updated_at = datetime()
+            RETURN r
+            """
+            parameters = {
+                "from_name": relation.from_entity,
+                "to_name": relation.to_entity,
+                "rel_type": relation.type
+            }
 
         result = self.execute_query(query, parameters)
         return result[0] if result else {}

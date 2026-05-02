@@ -1,9 +1,45 @@
 """项目配置文件"""
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
-# 加载环境变量
-load_dotenv()
+# 获取项目根目录
+CURRENT_DIR = Path(__file__).parent.parent
+PROJECTS_DIR = CURRENT_DIR / "projects"
+
+# 检测是否在子项目目录中
+# 通过检查是否存在 config/.env 文件来判断
+project_env = None
+if Path("config/.env").exists():
+    # 在子项目目录中
+    load_dotenv("config/.env")
+    project_env = Path("config/.env")
+elif Path("projects").exists():
+    # 在主项目目录中，尝试找到子项目
+    for project_dir in Path("projects").iterdir():
+        if project_dir.is_dir():
+            env_file = project_dir / "config" / ".env"
+            if env_file.exists():
+                # 找到了子项目的配置，尝试使用
+                # 但需要用户明确指定，这里暂时跳过
+                pass
+
+# 默认加载根目录的 .env
+if not Path("config/.env").exists():
+    load_dotenv()
+
+# 检测是否为子项目模式
+PROJECT_NAME = os.getenv("PROJECT_NAME", "default")
+if PROJECT_NAME != "default":
+    # 子项目模式：加载子项目的配置
+    project_config_file = PROJECTS_DIR / PROJECT_NAME / "config" / ".env"
+    if project_config_file.exists():
+        load_dotenv(project_config_file, override=True)
+        IS_SUBPROJECT = True
+    else:
+        IS_SUBPROJECT = False
+else:
+    IS_SUBPROJECT = False
 
 class Config:
     """全局配置类"""
@@ -28,11 +64,18 @@ class Config:
     NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
     NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
+    NEO4J_DATABASE = os.getenv("NEO4J_DATABASE", "neo4j")
 
     # Neo4j 连接池配置
     NEO4J_MAX_CONNECTION_LIFETIME = 3600
     NEO4J_MAX_TRANSACTION_RETRY_TIME = 30
     NEO4J_CONNECTION_ACQUISITION_TIMEOUT = 60
+
+    # ========== 子项目配置 ==========
+    # 子项目名称，用于在单数据库模式下区分子项目数据
+    PROJECT_NAME = os.getenv("PROJECT_NAME", "default")
+    # 是否为子项目模式
+    IS_SUBPROJECT = os.path.exists(os.path.join(os.path.dirname(__file__), "..", "projects", PROJECT_NAME))
 
     # ========== 应用配置 ==========
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

@@ -9,7 +9,6 @@ develop-eggs/
 dist/
 downloads/
 eggs/
-.eggs/
 lib/
 lib64/
 parts/
@@ -40,6 +39,7 @@ data/input/*
 data/output/*
 !data/input/.gitkeep
 !data/output/.gitkeep
+data/output/README.md
 
 # Logs
 *.log
@@ -60,3 +60,23 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# 工具脚本（保留有用的工具脚本）
+!tools/*.py
+tools/*_test.py
+tools/*_debug.py
+tools/fix_*.py
+
+# 子项目（子项目的数据、配置、日志）
+projects/*/
+!projects/projects.json  # 保留项目索引文件
+projects/*/data/
+projects/*/logs/
+projects/*/results/
+projects/*/config/.env
+projects/*/test*.py
+projects/*/main.py.bak  # 备份文件
+
+# 文档（保留主README，忽略本地文档）
+!README.md
+docs/*.md
