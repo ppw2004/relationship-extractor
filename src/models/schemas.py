@@ -41,5 +41,6 @@ class LLMResponse(BaseModel):
     content: str
     model: str
     usage: Optional[Dict[str, int]] = None
+    reasoning_content: Optional[str] = Field(None, description="深度思考内容")
     success: bool = True
     error: Optional[str] = None

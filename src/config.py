@@ -11,12 +11,18 @@ class Config:
     # ========== 智谱 AI 配置 ==========
     ZHIPU_API_KEY = os.getenv("ZHIPU_API_KEY")
     ZHIPU_API_BASE = os.getenv("ZHIPU_API_BASE", "https://open.bigmodel.cn/api/coding/paas/v4")
-    ZHIPU_MODEL = os.getenv("ZHIPU_MODEL", "glm-4-flash")
+    ZHIPU_MODEL = os.getenv("ZHIPU_MODEL", "glm-4.5-air")
 
     # LLM 调用参数
     LLM_TEMPERATURE = 0.7
     LLM_MAX_TOKENS = 2000
     LLM_TIMEOUT = 60
+
+    # 深度思考配置
+    # 是否启用深度思考模式（适用于支持思考的模型如 glm-4.5, glm-4.6, glm-4.7, glm-5 等）
+    ENABLE_THINKING = os.getenv("ENABLE_THINKING", "false").lower() == "true"
+    # 思考模式类型：enabled（启用）/ disabled（禁用）/ auto（自动判断）
+    THINKING_TYPE = os.getenv("THINKING_TYPE", "auto")
 
     # ========== Neo4j 配置 ==========
     NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
