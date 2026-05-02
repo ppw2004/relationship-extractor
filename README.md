@@ -15,6 +15,8 @@
 - [x] LLM 调用日志记录
 - [x] 数据库操作日志记录
 - [x] 完整的日志查询系统
+- [x] **异步批量处理** - 支持高并发异步提取
+- [x] **深度思考模式** - 启用 LLM 推理能力提升准确性
 - [ ] 支持多种文本格式输入
 - [ ] 提取结果可视化展示
 - [ ] 批量文本处理
@@ -64,10 +66,13 @@ relationship-extractor/
 │   ├── test_api.py          # API 测试
 │   ├── test_models.py       # 模型检测
 │   ├── test_neo4j.py        # Neo4j 测试
-│   └── test_logs.py         # 日志查询工具
+│   ├── test_logs.py         # 日志查询工具
+│   ├── test_thinking*.py    # 深度思考测试
+│   └── debug_*.py           # 调试脚本
 └── examples/                # 使用示例
     ├── basic_usage.py       # 基本使用
-    └── test_logging.py      # 日志测试
+    ├── async_example.py     # 异步调用示例
+    └── performance_comparison.py  # 性能对比测试
 ```
 
 ## 快速开始
@@ -148,7 +153,73 @@ print(result)
 # }
 ```
 
-### 6. 查看知识图谱
+### 6. 异步批量处理
+
+对于大量文本的处理，可以使用异步批量提取来提升性能：
+
+```python
+import asyncio
+from src.extractor import RelationshipExtractor
+
+async def batch_extract():
+    # 异步批量提取
+    extractor = RelationshipExtractor(auto_save=False)
+
+    texts = [
+        "马云是阿里巴巴的创始人",
+        "华为推出自主研发的MetaERP系统",
+        "金蝶软件是国内领先的企业管理软件供应商"
+    ]
+
+    # 并发提取（默认并发数为5）
+    results = await extractor.extract_batch_async(texts, concurrency=3)
+
+    for i, result in enumerate(results, 1):
+        print(f"文本 {i}: {len(result.entities)} 个实体, {len(result.relations)} 个关系")
+
+    extractor.close()
+
+# 运行异步任务
+asyncio.run(batch_extract())
+```
+
+**性能对比**（测试10条文本）：
+- 同步处理：~58秒
+- 异步处理（并发5）：~15秒
+- **提速 3.9 倍**
+
+### 7. 深度思考模式
+
+启用深度思考模式可以提升复杂文本的提取准确性：
+
+```python
+from src.extractor import RelationshipExtractor
+
+# 方式1：在 .env 中全局启用
+# ENABLE_THINKING=true
+
+# 方式2：代码中指定
+extractor = RelationshipExtractor(auto_save=False)
+
+# 启用深度思考
+result = extractor.extract(
+    "华为在2024年推出MetaERP系统，旨在替代原有Oracle系统，实现企业软件自主化。",
+    enable_thinking=True
+)
+
+print(f"实体数: {len(result.entities)}")
+print(f"关系数: {len(result.relations)}")
+
+extractor.close()
+```
+
+**深度思考效果**：
+- ✅ 更准确地识别隐含关系
+- ✅ 提取更多实体和关系
+- ⚠️ 响应时间增加约 50-100%
+- ⚠️ Token 消耗增加约 30-50%
+
+### 8. 查看知识图谱
 
 访问 Neo4j Browser 执行查询：
 
@@ -160,7 +231,7 @@ MATCH (n)-[r]->(m) RETURN n, r, m LIMIT 100
 MATCH (n {name: "马云"})-[r]-(m) RETURN n, r, m
 ```
 
-### 7. 查看操作日志
+### 9. 查看操作日志
 
 项目自动记录所有 LLM 调用和 Neo4j 操作到 SQLite 日志数据库：
 
@@ -179,7 +250,7 @@ python tests/test_logs.py --clear 30
 ```
 
 **日志内容**：
-- **LLM 日志**: 请求/响应内容、Token 消耗、耗时、模型版本
+- **LLM 日志**: 请求/响应内容、Token 消耗、耗时、模型版本、**深度思考内容**（如果启用）
 - **Neo4j 日志**: Cypher 查询、参数、影响行数、耗时
 
 日志数据库位置：`logs/app.db`（SQLite 格式）
@@ -197,6 +268,15 @@ python tests/test_logs.py --clear 30
 | `LLM_MAX_TOKENS` | LLM 最大 token 数 | `2000` |
 
 **可用模型**: `glm-4.5`, `glm-4.5-air`, `glm-4.6`, `glm-4.7`, `glm-5`, `glm-5-turbo`, `glm-5.1`
+
+### 深度思考配置
+
+| 配置项 | 说明 | 默认值 |
+|--------|------|--------|
+| `ENABLE_THINKING` | 是否启用深度思考模式 | `false` |
+| `THINKING_TYPE` | 思考模式类型 (enabled/disabled/auto) | `auto` |
+
+**注意**: 启用深度思考后会提高复杂文本的提取准确性，但会增加响应时间和 Token 消耗。
 
 ### Neo4j 配置
 
@@ -230,6 +310,8 @@ python tests/test_logs.py --clear 30
 - [x] 实现核心提取逻辑
 - [x] 实现日志系统（LLM + Neo4j）
 - [x] 添加日志查询工具
+- [x] **实现异步批量处理**
+- [x] **集成深度思考模式**
 - [ ] 添加单元测试
 - [ ] 支持批量文本处理
 - [ ] 添加结果导出功能（JSON/CSV）
