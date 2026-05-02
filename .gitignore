@@ -43,6 +43,10 @@ data/output/*
 
 # Logs
 *.log
+logs/
+*.db
+*.sqlite
+*.sqlite3
 
 # OS
 .DS_Store

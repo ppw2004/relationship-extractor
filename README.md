@@ -8,24 +8,31 @@
 
 ## 功能特性
 
-- [ ] 文本实体识别与抽取
-- [ ] 实体关系类型推断
+- [x] 文本实体识别与抽取
+- [x] 实体关系类型推断
+- [x] 知识图谱自动构建
+- [x] Neo4j 图数据库存储
+- [x] LLM 调用日志记录
+- [x] 数据库操作日志记录
+- [x] 完整的日志查询系统
 - [ ] 支持多种文本格式输入
-- [ ] 知识图谱自动构建
-- [ ] Neo4j 图数据库存储
 - [ ] 提取结果可视化展示
 - [ ] 批量文本处理
-- [ ] API 接口服务
+- [ ] 结果导出功能（JSON/CSV）
+- [ ] REST API 接口服务
 
 ## 技术栈
 
-- **大语言模型**: [智谱 AI](https://open.bigmodel.cn/) (GLM-4)
+- **大语言模型**: [智谱 AI](https://open.bigmodel.cn/) (GLM-4.5/4.6/4.7/5/5.1)
+- **LLM SDK**: OpenAI SDK (兼容智谱 API)
 - **图数据库**: Neo4j
+- **日志数据库**: SQLite
 - **编程语言**: Python 3.10+
 - **主要依赖**:
-  - `zhipuai` - 智谱 AI SDK
+  - `openai` - OpenAI SDK (智谱 AI 兼容)
   - `neo4j` - Neo4j 驱动
   - `python-dotenv` - 环境变量管理
+  - `pydantic` - 数据验证
 
 ## 项目结构
 
@@ -34,23 +41,33 @@ relationship-extractor/
 ├── README.md
 ├── requirements.txt          # Python 依赖
 ├── .env.example             # 环境变量示例
-├── config.py                # 配置文件
+├── .gitignore               # Git 忽略配置
 ├── src/
-│   ├── __init__.py
-│   ├── llm/                 # 大模型相关
-│   │   ├── __init__.py
+│   ├── config.py            # 全局配置
+│   ├── extractor.py         # 核心提取逻辑
+│   ├── models/              # 数据模型
+│   │   ├── schemas.py       # 业务数据模型
+│   │   └── log_schemas.py   # 日志数据模型
+│   ├── llm/                 # LLM 调用层
 │   │   ├── zhipu_client.py  # 智谱客户端封装
 │   │   └── prompts.py       # 提示词模板
-│   ├── graph/               # 图数据库相关
-│   │   ├── __init__.py
+│   ├── graph/               # 数据库层
 │   │   └── neo4j_client.py  # Neo4j 客户端封装
-│   ├── extractor.py         # 核心提取逻辑
-│   └── api.py               # API 服务（可选）
+│   └── logger/              # 日志系统
+│       └── log_storage.py   # SQLite 日志存储
 ├── data/                    # 数据目录
 │   ├── input/               # 输入文本
 │   └── output/              # 输出结果
+├── logs/                    # 日志数据库目录
+│   └── app.db               # SQLite 日志数据库
 ├── tests/                   # 测试文件
+│   ├── test_api.py          # API 测试
+│   ├── test_models.py       # 模型检测
+│   ├── test_neo4j.py        # Neo4j 测试
+│   └── test_logs.py         # 日志查询工具
 └── examples/                # 使用示例
+    ├── basic_usage.py       # 基本使用
+    └── test_logging.py      # 日志测试
 ```
 
 ## 快速开始
@@ -143,23 +160,76 @@ MATCH (n)-[r]->(m) RETURN n, r, m LIMIT 100
 MATCH (n {name: "马云"})-[r]-(m) RETURN n, r, m
 ```
 
+### 7. 查看操作日志
+
+项目自动记录所有 LLM 调用和 Neo4j 操作到 SQLite 日志数据库：
+
+```bash
+# 查看日志统计
+python tests/test_logs.py --stats
+
+# 查看 LLM 调用日志（最近 10 条）
+python tests/test_logs.py --llm
+
+# 查看 Neo4j 操作日志（最近 10 条）
+python tests/test_logs.py --neo4j
+
+# 清理 30 天前的旧日志
+python tests/test_logs.py --clear 30
+```
+
+**日志内容**：
+- **LLM 日志**: 请求/响应内容、Token 消耗、耗时、模型版本
+- **Neo4j 日志**: Cypher 查询、参数、影响行数、耗时
+
+日志数据库位置：`logs/app.db`（SQLite 格式）
+
 ## 配置说明
+
+### 智谱 AI 配置
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
 | `ZHIPU_API_KEY` | 智谱 AI API 密钥 | - |
-| `ZHIPU_MODEL` | 使用的模型名称 | `glm-4-flash` |
+| `ZHIPU_API_BASE` | 智谱 API 地址 | `https://open.bigmodel.cn/api/coding/paas/v4` |
+| `ZHIPU_MODEL` | 使用的模型名称 | `glm-4.5-air` |
+| `LLM_TEMPERATURE` | LLM 温度参数 | `0.7` |
+| `LLM_MAX_TOKENS` | LLM 最大 token 数 | `2000` |
+
+**可用模型**: `glm-4.5`, `glm-4.5-air`, `glm-4.6`, `glm-4.7`, `glm-5`, `glm-5-turbo`, `glm-5.1`
+
+### Neo4j 配置
+
+| 配置项 | 说明 | 默认值 |
+|--------|------|--------|
 | `NEO4J_URI` | Neo4j 连接地址 | `bolt://localhost:7687` |
 | `NEO4J_USER` | Neo4j 用户名 | `neo4j` |
 | `NEO4J_PASSWORD` | Neo4j 密码 | - |
 
+### 日志配置
+
+| 配置项 | 说明 | 默认值 |
+|--------|------|--------|
+| `LOG_DB_PATH` | 日志数据库路径 | `logs/app.db` |
+| `ENABLE_LLM_LOGGING` | 启用 LLM 日志 | `true` |
+| `ENABLE_NEO4J_LOGGING` | 启用 Neo4j 日志 | `true` |
+| `LOG_RETENTION_DAYS` | 日志保留天数 | `30` |
+
+### 应用配置
+
+| 配置项 | 说明 | 默认值 |
+|--------|------|--------|
+| `LOG_LEVEL` | 日志级别 | `INFO` |
+
 ## 开发计划
 
 - [x] 项目初始化
-- [ ] 实现智谱 AI 接口封装
-- [ ] 实现 Neo4j 连接与操作封装
-- [ ] 设计实体与关系提取提示词
-- [ ] 实现核心提取逻辑
+- [x] 实现智谱 AI 接口封装
+- [x] 实现 Neo4j 连接与操作封装
+- [x] 设计实体与关系提取提示词
+- [x] 实现核心提取逻辑
+- [x] 实现日志系统（LLM + Neo4j）
+- [x] 添加日志查询工具
 - [ ] 添加单元测试
 - [ ] 支持批量文本处理
 - [ ] 添加结果导出功能（JSON/CSV）
@@ -173,6 +243,10 @@ MATCH (n {name: "马云"})-[r]-(m) RETURN n, r, m
 ## 许可证
 
 MIT License
+
+## 作者
+
+**ppw2004** - [GitHub](https://github.com/ppw2004)
 
 ## 联系方式
 

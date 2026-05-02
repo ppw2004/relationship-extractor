@@ -2,9 +2,13 @@
 from neo4j import GraphDatabase, Driver
 from typing import List, Dict, Any, Optional
 import logging
+import json
+import time
 
 from src.config import Config
 from src.models.schemas import Entity, Relation, ExtractionResult
+from src.models.log_schemas import Neo4jLogEntry, DBLogType
+from src.logger.log_storage import LogStorage
 
 logger = logging.getLogger(__name__)
 
@@ -12,10 +16,21 @@ logger = logging.getLogger(__name__)
 class Neo4jClient:
     """Neo4j 客户端"""
 
-    def __init__(self):
-        """初始化客户端"""
+    def __init__(self, enable_logging: bool = None):
+        """
+        初始化客户端
+
+        Args:
+            enable_logging: 是否启用日志，默认从配置读取
+        """
         self._driver: Optional[Driver] = None
         self._connect()
+
+        # 初始化日志存储
+        if enable_logging is None:
+            enable_logging = Config.ENABLE_NEO4J_LOGGING
+        self.enable_logging = enable_logging
+        self.log_storage = LogStorage(Config.LOG_DB_PATH) if enable_logging else None
 
     def _connect(self):
         """建立数据库连接"""
@@ -51,11 +66,43 @@ class Neo4jClient:
         Returns:
             查询结果列表
         """
+        start_time = time.time()
+
         try:
             with self._driver.session() as session:
                 result = session.run(query, parameters or {})
-                return [record.data() for record in result]
+                records = [record.data() for record in result]
+
+                # 计算耗时
+                duration_ms = (time.time() - start_time) * 1000
+
+                # 记录日志
+                if self.enable_logging and self.log_storage:
+                    self.log_storage.save_neo4j_log(Neo4jLogEntry(
+                        log_type=DBLogType.QUERY,
+                        query=query,
+                        parameters=json.dumps(parameters, ensure_ascii=False, default=str) if parameters else None,
+                        result_count=len(records),
+                        duration_ms=duration_ms,
+                        success=True
+                    ))
+
+                return records
+
         except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+
+            # 记录错误日志
+            if self.enable_logging and self.log_storage:
+                self.log_storage.save_neo4j_log(Neo4jLogEntry(
+                    log_type=DBLogType.ERROR,
+                    query=query,
+                    parameters=json.dumps(parameters, ensure_ascii=False, default=str) if parameters else None,
+                    duration_ms=duration_ms,
+                    success=False,
+                    error_message=str(e)
+                ))
+
             logger.error(f"查询执行失败: {e}")
             raise
 

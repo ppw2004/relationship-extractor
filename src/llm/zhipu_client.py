@@ -2,16 +2,24 @@
 from openai import OpenAI
 from typing import List, Dict, Any, Optional
 import json
+import time
 
 from src.config import Config
 from src.models.schemas import LLMResponse
+from src.models.log_schemas import LLMLogEntry, LLMLogType
+from src.logger.log_storage import LogStorage
 
 
 class ZhipuClient:
     """智谱 AI 客户端"""
 
-    def __init__(self):
-        """初始化客户端"""
+    def __init__(self, enable_logging: bool = None):
+        """
+        初始化客户端
+
+        Args:
+            enable_logging: 是否启用日志，默认从配置读取
+        """
         self.client = OpenAI(
             api_key=Config.ZHIPU_API_KEY,
             base_url=Config.ZHIPU_API_BASE
@@ -20,6 +28,12 @@ class ZhipuClient:
         self.temperature = Config.LLM_TEMPERATURE
         self.max_tokens = Config.LLM_MAX_TOKENS
         self.timeout = Config.LLM_TIMEOUT
+
+        # 初始化日志存储
+        if enable_logging is None:
+            enable_logging = Config.ENABLE_LLM_LOGGING
+        self.enable_logging = enable_logging
+        self.log_storage = LogStorage(Config.LOG_DB_PATH) if enable_logging else None
 
     def chat(
         self,
@@ -42,13 +56,27 @@ class ZhipuClient:
         Returns:
             LLMResponse: 响应结果
         """
+        start_time = time.time()
+        actual_temperature = temperature or self.temperature
+        actual_max_tokens = max_tokens or self.max_tokens
+
+        # 记录请求日志
+        if self.enable_logging and self.log_storage:
+            self.log_storage.save_llm_log(LLMLogEntry(
+                log_type=LLMLogType.CHAT_REQUEST,
+                model=self.model,
+                request_messages=json.dumps(messages, ensure_ascii=False),
+                temperature=actual_temperature,
+                max_tokens=actual_max_tokens
+            ))
+
         try:
             # 构建请求参数
             request_params = {
                 "model": self.model,
                 "messages": messages,
-                "temperature": temperature or self.temperature,
-                "max_tokens": max_tokens or self.max_tokens,
+                "temperature": actual_temperature,
+                "max_tokens": actual_max_tokens,
                 "timeout": self.timeout,
                 **kwargs
             }
@@ -60,8 +88,11 @@ class ZhipuClient:
             # 发送请求
             response = self.client.chat.completions.create(**request_params)
 
+            # 计算耗时
+            duration_ms = (time.time() - start_time) * 1000
+
             # 解析响应
-            return LLMResponse(
+            llm_response = LLMResponse(
                 content=response.choices[0].message.content,
                 model=response.model,
                 usage={
@@ -72,7 +103,41 @@ class ZhipuClient:
                 success=True
             )
 
+            # 记录响应日志
+            if self.enable_logging and self.log_storage:
+                self.log_storage.save_llm_log(LLMLogEntry(
+                    log_type=LLMLogType.CHAT_RESPONSE,
+                    model=self.model,
+                    request_messages=json.dumps(messages, ensure_ascii=False),
+                    response_content=response.choices[0].message.content,
+                    response_model=response.model,
+                    prompt_tokens=response.usage.prompt_tokens,
+                    completion_tokens=response.usage.completion_tokens,
+                    total_tokens=response.usage.total_tokens,
+                    temperature=actual_temperature,
+                    max_tokens=actual_max_tokens,
+                    duration_ms=duration_ms,
+                    success=True
+                ))
+
+            return llm_response
+
         except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+
+            # 记录错误日志
+            if self.enable_logging and self.log_storage:
+                self.log_storage.save_llm_log(LLMLogEntry(
+                    log_type=LLMLogType.CHAT_ERROR,
+                    model=self.model,
+                    request_messages=json.dumps(messages, ensure_ascii=False),
+                    temperature=actual_temperature,
+                    max_tokens=actual_max_tokens,
+                    duration_ms=duration_ms,
+                    success=False,
+                    error_message=str(e)
+                ))
+
             return LLMResponse(
                 content="",
                 model=self.model,

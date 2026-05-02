@@ -36,6 +36,16 @@ class Config:
     INPUT_DIR = os.path.join(DATA_DIR, "input")
     OUTPUT_DIR = os.path.join(DATA_DIR, "output")
 
+    # ========== 日志配置 ==========
+    # 日志数据库路径
+    LOG_DB_PATH = os.getenv("LOG_DB_PATH", "logs/app.db")
+    # 是否启用 LLM 调用日志
+    ENABLE_LLM_LOGGING = os.getenv("ENABLE_LLM_LOGGING", "true").lower() == "true"
+    # 是否启用 Neo4j 操作日志
+    ENABLE_NEO4J_LOGGING = os.getenv("ENABLE_NEO4J_LOGGING", "true").lower() == "true"
+    # 日志保留天数
+    LOG_RETENTION_DAYS = int(os.getenv("LOG_RETENTION_DAYS", "30"))
+
     @classmethod
     def validate(cls):
         """验证必要配置是否完整"""
